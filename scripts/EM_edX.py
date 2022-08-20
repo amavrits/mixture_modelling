@@ -77,24 +77,24 @@ def estep(X: np.ndarray, mixture: GaussianMixture) -> Tuple[np.ndarray, float]:
     mu, var, pi = mixture
     K = mu.shape[0]
     delta = X > 0
-    f = np.empty((X.shape[0],K),dtype=np.float64)
-    mype = np.empty((X.shape[0],K),dtype=np.float64)
+    f = np.empty((X.shape[0], K), dtype=np.float64)
+    mype = np.empty((X.shape[0], K), dtype=np.float64)
     for i in range(K):
-       z=np.sum((((X-mu[i])*delta )**2 )/(var[i]*2),axis=1)
-       z=z[..., None]
-       f[:, i] = z[:,0]
+       z = np.sum((((X-mu[i])*delta)**2)/(var[i]*2),axis=1)
+       z = z[..., None]
+       f[:, i] = z[:, 0]
        zpe = (var[i] * 2 * np.pi)
-       zpe=zpe[..., None]
+       zpe = zpe[..., None]
        mype[:, i] = np.log(zpe)
-    pe_1_1 = (-np.sum(delta, axis=1))/2.0
-    pe_1_1=pe_1_1[..., None]
-    mype = mype*pe_1_1
+    pe_1_1 = -np.sum(delta, axis=1) / 2.0
+    pe_1_1 = pe_1_1[..., None]
+    mype = mype * pe_1_1
     f = mype - f
     f = f + np.log(pi + 1e-16)
     logsums = logsumexp(f, axis=1)
-    logsums=logsums[..., None]
+    logsums = logsums[..., None]
     log_posts = f - logsums
-    return np.exp(log_posts),np.sum(logsums, axis=0).item()
+    return np.exp(log_posts), np.sum(logsums, axis=0).item()
 
 
 def mstep(X: np.ndarray, post: np.ndarray, mixture: GaussianMixture,
@@ -115,19 +115,19 @@ def mstep(X: np.ndarray, post: np.ndarray, mixture: GaussianMixture,
     delta = X > 0
     K = post.shape[1]
     sum_post = post.sum(axis=0)
-    sum_post=sum_post[..., None]
+    sum_post = sum_post[..., None]
     pi = sum_post / n
     mu_new = np.dot(post.T, X)
     mu_divisors = post.T @ delta
-    mu = np.where(mu_divisors > 1, np.divide(mu_new , mu_divisors),old_mu )
-    sigma = np.zeros((n,K));
+    mu = np.where(mu_divisors > 1, np.divide(mu_new, mu_divisors), old_mu)
+    sigma = np.zeros((n, K))
     for i in range(n):
-       Cu = X[i,:] > 0
-       diff = X[i, Cu] - mu[:,Cu]
-       sigma[i,:] = np.sum(diff**2, axis=1)
-    sum_Cu = np.sum(post*np.sum(delta, axis=1).reshape(-1,1), axis=0)
-    sigma = np.sum(post*sigma, axis=0)/sum_Cu
-    sigma = np.maximum(sigma,min_variance)
+       Cu = X[i, :] > 0
+       diff = X[i, Cu] - mu[:, Cu]
+       sigma[i, :] = np.sum(diff**2, axis=1)
+    sum_Cu = np.sum(post*np.sum(delta, axis=1).reshape(-1, 1), axis=0)
+    sigma = np.sum(post*sigma, axis=0) / sum_Cu
+    sigma = np.maximum(sigma, min_variance)
     return GaussianMixture(mu, sigma, pi.T[0])
 
 
@@ -174,25 +174,24 @@ def fill_matrix(X: np.ndarray, mixture: GaussianMixture) -> np.ndarray:
 
     n, d = X.shape
     mu, var, pi = mixture
-    print("fill_matrix from mu",mu)
     K = mu.shape[0]
     delta = X > 0
     f = np.empty((X.shape[0],K),dtype=np.float64)
     mype = np.empty((X.shape[0],K),dtype=np.float64)
     for i in range(K):
-       z=np.sum((((X-mu[i])*delta )**2 )/(var[i]*2),axis=1)
-       z=z[..., None]
-       f[:, i] = z[:,0]
+       z = np.sum((((X-mu[i])*delta )**2)/(var[i]*2), axis=1)
+       z = z[..., None]
+       f[:, i] = z[:, 0]
        zpe = (var[i] * 2 * np.pi)
-       zpe=zpe[..., None]
+       zpe = zpe[..., None]
        mype[:, i] = np.log(zpe)
-    pe_1_1 = (-np.sum(delta, axis=1))/2.0
-    pe_1_1=pe_1_1[..., None]
-    mype = mype*pe_1_1
+    pe_1_1 = -np.sum(delta, axis=1) / 2.0
+    pe_1_1 = pe_1_1[..., None]
+    mype = mype * pe_1_1
     f = mype - f
     f = f + np.log(pi + 1e-16)
     logsums = logsumexp(f, axis=1)
-    logsums=logsums[..., None]
+    logsums = logsums[..., None]
     log_posts = f - logsums
 
     post = np.exp(log_posts)
