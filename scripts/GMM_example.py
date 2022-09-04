@@ -4,7 +4,6 @@ from EM_algorithm import EM
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 
-
 # Generate data
 n_dim, n_clusters_data = 1, 2
 n_train, n_test = 100, 100
@@ -44,8 +43,8 @@ mix_par_init = (mix_mu_init, mix_sigma_init)
 log_like_fn = lambda x, par: norm.logpdf(x, loc=par[0], scale=par[1]).squeeze()  # Set log-likelihood function based on mixture distribution
 
 # EM algorithm for a single initialization
-em = EM(mix_weights_init, mix_par_init, log_like_fn)
-em.optimize(X_train, tol=1e-15)
+em = EM(mix_weights_init=mix_weights_init, mix_par_init=mix_par_init, log_like_fn=log_like_fn)
+em.optimize(X_train, n_clusters=2, tol=1e-15)
 
 # Visualize result
 fig = plt.figure()
@@ -54,4 +53,5 @@ plt.hist(data, density=True, bins=bins, alpha=0.3, color='blue')
 for (mu, mu_real) in zip(em.mix_par[0], data_mu):
     plt.axvline(mu, color='black')
     plt.axvline(mu_real, color='red')
+
 

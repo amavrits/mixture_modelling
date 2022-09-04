@@ -2,6 +2,32 @@ import numpy as np
 from scipy.stats import norm
 from EM_algorithm import EM
 import matplotlib.pyplot as plt
+from sklearn.cluster import KMeans
+from sklearn.linear_model import LinearRegression
+
+
+def init_fn(data, n_clusters):
+    x = data[:, 1].reshape(-1, 1)
+    y = data[:, -1]
+    kmeans = KMeans(n_clusters=n_clusters, random_state=0).fit(np.c_[x, y])
+    betas = np.zeros((n_clusters, x.shape[1]+1))
+    sigma = np.zeros(n_clusters)
+    for i_cluster in range(n_clusters):
+        idx = np.where(kmeans.labels_ == i_cluster)[0]
+        reg = LinearRegression().fit(x[idx], y[idx])
+        y_hat = reg.predict(x[idx])
+        residuals = (y[idx] - y_hat) ** 2
+        sigma[i_cluster] = np.sqrt(np.dot(residuals.T, residuals) / (x.shape[0] - x.shape[1]))
+        betas[i_cluster] = np.array([reg.intercept_, reg.coef_[0]])
+    mix_par_init = (betas, sigma)
+    mix_weights_init = np.array([sum(kmeans.labels_== i_cluster) for i_cluster in range(n_clusters)]) / x.shape[0]
+    return mix_par_init, mix_weights_init
+
+def log_like_fn(x, par):
+    y_hat = x[:, :-1].dot(par[0])
+    log_like = norm.logpdf(x[:, -1], loc=y_hat, scale=par[1])
+    return log_like
+
 
 # Generate data
 n_dim, n_clusters_data = 1, 2
@@ -42,34 +68,16 @@ y_train = data_y[:n_train]
 X_test = data_x[n_train:]
 y_test = data_y[n_train:]
 
-# Initialize mixture
-n_clusters = n_clusters_data  # To be optimized by wrapper of EM
-np.random.seed(842)
-mix_weights_init = np.random.dirichlet(np.ones(n_clusters), size=1).flatten()
-np.random.seed(654)
-mix_alpha_init = np.random.uniform(-3, 3, n_clusters)
-np.random.seed(6324896)
-mix_beta_init = np.random.uniform(-3, 3, n_clusters)
-mix_coeff_init = np.c_[mix_alpha_init, mix_beta_init]
-np.random.seed(159)
-mix_sigma_init = np.random.uniform(0, 1, n_clusters)
-mix_par_init = (mix_coeff_init, mix_sigma_init)
-
-def log_like_fn(x, par):
-    y_hat = x[:, :-1].dot(par[0])
-    log_like = norm.logpdf(x[:, -1], loc=y_hat, scale=par[1])
-    return log_like
-
 data = np.c_[X_train, y_train]
-em = EM(mix_weights_init, mix_par_init, log_like_fn, model_type='linear')
-em.optimize(data, tol=1e-6)
+em = EM(log_like_fn, init_fn=init_fn, model_type='linear')
+em.optimize(data, n_clusters=n_clusters_data, tol=1e-6)
 
 # Visualize result
 fig = plt.figure()
 colors = ['blue', 'red', 'orange', 'purple', 'magenta']
 x_grid = np.linspace(-5, 5, 10)
 x_grid = np.c_[np.ones_like(x_grid), x_grid]
-for i_cluster in [i for i in range(n_clusters)]:
+for i_cluster in [i for i in range(em.n_clusters)]:
     y_hat = np.dot(x_grid, em.mix_par[0][i_cluster])
     y_lower = y_hat - 1.64 * em.mix_par[1][i_cluster]
     y_upper = y_hat + 1.64 * em.mix_par[1][i_cluster]
