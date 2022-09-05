@@ -44,7 +44,7 @@ log_like_fn = lambda x, par: norm.logpdf(x, loc=par[0], scale=par[1]).squeeze() 
 
 # EM algorithm for a single initialization
 em = EM(mix_weights_init=mix_weights_init, mix_par_init=mix_par_init, log_like_fn=log_like_fn)
-em.optimize(X_train, n_clusters=2, tol=1e-15)
+em.train(X_train, n_clusters=2, tol=1e-15)
 
 # Visualize result
 fig = plt.figure()

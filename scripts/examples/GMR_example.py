@@ -6,21 +6,23 @@ from sklearn.cluster import KMeans
 from sklearn.linear_model import LinearRegression
 
 
-def init_fn(data, n_clusters):
+def init_fn(data, n_clusters, Z=None):
     x = data[:, 1].reshape(-1, 1)
     y = data[:, -1]
-    kmeans = KMeans(n_clusters=n_clusters, random_state=0).fit(np.c_[x, y])
+    if Z is None:
+        kmeans = KMeans(n_clusters=n_clusters, random_state=0).fit(np.c_[x, y])
+        Z = kmeans.labels_
     betas = np.zeros((n_clusters, x.shape[1]+1))
     sigma = np.zeros(n_clusters)
     for i_cluster in range(n_clusters):
-        idx = np.where(kmeans.labels_ == i_cluster)[0]
+        idx = np.where(Z == i_cluster)[0]
         reg = LinearRegression().fit(x[idx], y[idx])
         y_hat = reg.predict(x[idx])
         residuals = (y[idx] - y_hat) ** 2
         sigma[i_cluster] = np.sqrt(np.dot(residuals.T, residuals) / (x.shape[0] - x.shape[1]))
         betas[i_cluster] = np.array([reg.intercept_, reg.coef_[0]])
     mix_par_init = (betas, sigma)
-    mix_weights_init = np.array([sum(kmeans.labels_== i_cluster) for i_cluster in range(n_clusters)]) / x.shape[0]
+    mix_weights_init = np.array([sum(Z == i_cluster) for i_cluster in range(n_clusters)]) / x.shape[0]
     return mix_par_init, mix_weights_init
 
 def log_like_fn(x, par):
@@ -70,7 +72,7 @@ y_test = data_y[n_train:]
 
 data = np.c_[X_train, y_train]
 em = EM(log_like_fn, init_fn=init_fn, model_type='linear')
-em.optimize(data, n_clusters=n_clusters_data, tol=1e-6)
+em.train(data, init_method='random', n_clusters=n_clusters_data, tol=1e-6)
 
 # Visualize result
 fig = plt.figure()

@@ -1,15 +1,25 @@
 import numpy as np
 from scipy.special import logsumexp
 from types import FunctionType
+from sklearn.cluster import KMeans
 
 class EM_wrapper:
 
-    def EM_initiliazation(self):
+    def EM_init_Kmeans(self):
         self.mix_par, self.weights = self.init_fn(data=self.X_train, n_clusters=self.n_clusters)
 
-    def run_EM(self):
-        pass
+    def EM_init_random(self, seed=123):
+        np.random.seed(seed)
+        Z = np.random.choice([i for i in range(self.n_clusters)], size=self.n_train, replace=True)
+        self.mix_par, self.weights = self.init_fn(data=self.X_train, Z=Z, n_clusters=self.n_clusters)
 
+    def EM_init(self, init_method='Kmeans'):
+        if init_method == 'Kmeans':
+            self.EM_init_Kmeans()
+        elif init_method == 'random':
+            self.EM_init_random()
+        else:
+            raise Exception('No initlization method given')
 
 class EM(EM_wrapper):
 
@@ -95,7 +105,7 @@ class EM(EM_wrapper):
         self.mix_par = mix_par
         self.weights = post.sum(axis=0) / self.n_train
 
-    def optimize(self, data, n_clusters, tol=1e-6, n_loops=int(1e+5)):
+    def train(self, data, n_clusters, init_method='deterministic', tol=1e-6, n_loops=int(1e+5)):
 
         self.convergence = False
 
@@ -105,7 +115,7 @@ class EM(EM_wrapper):
         self.n_clusters = n_clusters
 
         if isinstance(self.init_fn, FunctionType):
-            self.EM_initiliazation()
+            self.EM_init(init_method=init_method)
 
         old_log_like = None
         new_log_like = None
@@ -119,6 +129,7 @@ class EM(EM_wrapper):
                 self.convergence = True
                 self.post_train, self.log_like = self.e_step()
                 break
+        self.Z = np.argmax(self.post_train, axis=1)
         self.calc_bic()
         self.calc_aic()
 
