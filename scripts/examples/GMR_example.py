@@ -6,6 +6,16 @@ from sklearn.cluster import KMeans
 from sklearn.linear_model import LinearRegression
 
 
+class EM_GMR(EM):
+
+    def log_like_fn(self, par):
+        x = self.X_train[:, :-1]
+        y = self.X_train[:, -1]
+        y_hat = x.dot(par[0])
+        log_like = norm.logpdf(y, loc=y_hat, scale=par[1])
+        return log_like
+
+
 def init_fn(data, n_clusters, Z=None):
     x = data[:, 1].reshape(-1, 1)
     y = data[:, -1]
@@ -24,11 +34,6 @@ def init_fn(data, n_clusters, Z=None):
     mix_par_init = (betas, sigma)
     mix_weights_init = np.array([sum(Z == i_cluster) for i_cluster in range(n_clusters)]) / x.shape[0]
     return mix_par_init, mix_weights_init
-
-def log_like_fn(x, par):
-    y_hat = x[:, :-1].dot(par[0])
-    log_like = norm.logpdf(x[:, -1], loc=y_hat, scale=par[1])
-    return log_like
 
 
 # Generate data
@@ -71,7 +76,7 @@ X_test = data_x[n_train:]
 y_test = data_y[n_train:]
 
 data = np.c_[X_train, y_train]
-em = EM(log_like_fn, init_fn=init_fn, model_type='linear')
+em = EM_GMR(init_fn=init_fn, model_type='linear')
 em.train(data, init_method='random', n_clusters=n_clusters_data, tol=1e-6)
 
 # Visualize result

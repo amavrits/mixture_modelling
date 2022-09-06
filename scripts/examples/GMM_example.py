@@ -4,6 +4,13 @@ from EM_algorithm import EM
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 
+class EM_GMM(EM):
+
+    def log_like_fn(self, par):
+        x = self.X_train
+        return norm.logpdf(x, loc=par[0], scale=par[1]).squeeze()
+
+
 # Generate data
 n_dim, n_clusters_data = 1, 2
 n_train, n_test = 100, 100
@@ -40,10 +47,8 @@ for i_cluster in range(n_clusters):
 mix_sigma_init = np.maximum(1e-6, mix_sigma_init)
 mix_par_init = (mix_mu_init, mix_sigma_init)
 
-log_like_fn = lambda x, par: norm.logpdf(x, loc=par[0], scale=par[1]).squeeze()  # Set log-likelihood function based on mixture distribution
-
 # EM algorithm for a single initialization
-em = EM(mix_weights_init=mix_weights_init, mix_par_init=mix_par_init, log_like_fn=log_like_fn)
+em = EM_GMM(mix_weights_init=mix_weights_init, mix_par_init=mix_par_init)
 em.train(X_train, n_clusters=2, tol=1e-15)
 
 # Visualize result

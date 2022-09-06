@@ -7,6 +7,15 @@ from sklearn.cluster import KMeans
 from sklearn.linear_model import LinearRegression
 from sklearn.linear_model import LogisticRegression
 
+class EM_GMR_table(EM):
+
+    def log_like_fn(self, par):
+        x = self.X_train
+        y = self.X_train[:, -1]
+        y_hat = x[:, :-1].dot(par[0])
+        log_like = norm.logpdf(y, loc=y_hat, scale=par[1])
+        return log_like
+
 
 def init_fn(data, n_clusters, Z=None):
     x = data[:, 1].reshape(-1, 1)
@@ -27,10 +36,6 @@ def init_fn(data, n_clusters, Z=None):
     mix_weights_init = np.array([sum(Z == i_cluster) for i_cluster in range(n_clusters)]) / x.shape[0]
     return mix_par_init, mix_weights_init
 
-def log_like_fn(x, par):
-    y_hat = x[:, :-1].dot(par[0])
-    log_like = norm.logpdf(x[:, -1], loc=y_hat, scale=par[1])
-    return log_like
 
 def logistic_prediction(x, theta):
     x = np.c_[np.ones(x.shape[0]), x]
@@ -93,9 +98,8 @@ table_train = table[:n_train]
 table_test = table[n_train:]
 
 data = np.c_[X_train, y_train]
-em = EM(log_like_fn, init_fn=init_fn, model_type='linear')
+em = EM_GMR_table(init_fn=init_fn, model_type='linear')
 em.train(data, init_method='random', n_clusters=n_clusters_data, tol=1e-6)
-
 
 clf = LogisticRegression(random_state=0).fit(table_train, em.Z)
 
@@ -118,22 +122,22 @@ plt.plot(x[:, -1], y_model_estimated, color='r')
 plt.scatter(X_train[:, -1], em.Z, color='r')
 
 
-## Visualize result
-# fig = plt.figure()
-# colors = ['blue', 'red', 'orange', 'purple', 'magenta']
-# x_grid = np.linspace(-5, 5, 10)
-# x_grid = np.c_[np.ones_like(x_grid), x_grid]
-# for i_cluster in [i for i in range(em.n_clusters)]:
-#     y_hat = np.dot(x_grid, em.mix_par[0][i_cluster])
-#     y_lower = y_hat - 1.64 * em.mix_par[1][i_cluster]
-#     y_upper = y_hat + 1.64 * em.mix_par[1][i_cluster]
-#     plt.scatter(X_train[cluster_idx[:n_train] == i_cluster, -1], y_train[cluster_idx[:n_train] == i_cluster], color=colors[i_cluster])
-#     plt.plot(x_grid[:, -1], y_hat, color='k')
-#     plt.fill_between(x_grid[:, -1], y_lower, y_upper, alpha=0.3, color='green')
-# plt.xlabel('Independent variable', fontsize=14)
-# plt.ylabel('Dependent variable', fontsize=14)
-# beta_OLS = np.dot(np.dot(np.linalg.inv(np.dot(X_train.T, X_train)), X_train.T), y_train)
-# y_hat_OLS = np.dot(x_grid, beta_OLS)
-# plt.plot(x_grid[:, -1], y_hat_OLS, linewidth=4, color='k', linestyle='--', label='OLS solution')
-# plt.legend(fontsize=12)
+# Visualize result
+fig = plt.figure()
+colors = ['blue', 'red', 'orange', 'purple', 'magenta']
+x_grid = np.linspace(-5, 5, 10)
+x_grid = np.c_[np.ones_like(x_grid), x_grid]
+for i_cluster in [i for i in range(em.n_clusters)]:
+    y_hat = np.dot(x_grid, em.mix_par[0][i_cluster])
+    y_lower = y_hat - 1.64 * em.mix_par[1][i_cluster]
+    y_upper = y_hat + 1.64 * em.mix_par[1][i_cluster]
+    plt.scatter(X_train[cluster_idx[:n_train] == i_cluster, -1], y_train[cluster_idx[:n_train] == i_cluster], color=colors[i_cluster])
+    plt.plot(x_grid[:, -1], y_hat, color='k')
+    plt.fill_between(x_grid[:, -1], y_lower, y_upper, alpha=0.3, color='green')
+plt.xlabel('Independent variable', fontsize=14)
+plt.ylabel('Dependent variable', fontsize=14)
+beta_OLS = np.dot(np.dot(np.linalg.inv(np.dot(X_train.T, X_train)), X_train.T), y_train)
+y_hat_OLS = np.dot(x_grid, beta_OLS)
+plt.plot(x_grid[:, -1], y_hat_OLS, linewidth=4, color='k', linestyle='--', label='OLS solution')
+plt.legend(fontsize=12)
 

@@ -1,7 +1,6 @@
 import numpy as np
 from scipy.special import logsumexp
 from types import FunctionType
-from sklearn.cluster import KMeans
 
 class EM_wrapper:
 
@@ -23,9 +22,9 @@ class EM_wrapper:
 
 class EM(EM_wrapper):
 
-    def __init__(self, log_like_fn, init_fn=None, mix_par_init=None, mix_weights_init=None, model_type='normal'):
+    def __init__(self, init_fn=None, mix_par_init=None, mix_weights_init=None, model_type='normal'):
         self.model_type = str.lower(model_type)
-        self.log_like_fn = log_like_fn
+        # self.log_like_fn = log_like_fn
         self.bic = None
         self.aic = None
         if isinstance(init_fn, FunctionType):
@@ -41,11 +40,11 @@ class EM(EM_wrapper):
         log_like_points = np.zeros((self.n_train, self.n_clusters))
         for i_cluster, par in enumerate(zip(*self.mix_par)):
             weight = self.weights[i_cluster]
-            log_like_points[:, i_cluster] = np.log(weight) + self.log_like_fn(self.X_train, par) + np.log(1e-16)
+            log_like_points[:, i_cluster] = np.log(weight) + self.log_like_fn(par) + np.log(1e-16)
         post = np.exp(log_like_points - logsumexp(log_like_points, axis=1)[:, None])
         return post, log_like_points.sum()
 
-    def m_step(self, post, var_lower_bnd=1e-3):
+    def m_step(self, post, var_lower_bnd=1e-5):
         mix_par = ()
         if self.model_type == 'normal':
             mu = np.dot(post.T, self.X_train) / post.sum(axis=0)[:, None]
@@ -95,7 +94,9 @@ class EM(EM_wrapper):
 
             var /= post.sum(axis=0)
 
-            var_lower_bnd = 1
+            #TODO: What going on here?
+            var_lower_bnd = 1e-0
+
             var[np.where(np.isnan(var))] = var_lower_bnd
             var = np.maximum(var_lower_bnd, var)
             sigma = np.sqrt(var)
