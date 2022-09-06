@@ -16,9 +16,9 @@ class EM_GMR(EM):
         return log_like
 
 
-def init_fn(data, n_clusters, Z=None):
-    x = data[:, 1].reshape(-1, 1)
-    y = data[:, -1]
+def init_fn(X_train, n_clusters, Z=None):
+    x = X_train[:, :-1].reshape(-1, 1)
+    y = X_train[:, -1]
     if Z is None:
         kmeans = KMeans(n_clusters=n_clusters, random_state=0).fit(np.c_[x, y])
         Z = kmeans.labels_
@@ -78,7 +78,9 @@ y_test = data_y[n_train:]
 
 data = np.c_[X_train, y_train]
 em = EM_GMR(init_fn=init_fn, model_type='linear')
-em.train(data, init_method='random', n_clusters=n_clusters_data, tol=1e-6)
+# em.EM_set_initialization(data, n_clusters=n_clusters_data, init_method='random')
+# em.train()
+em.multi_random_init(data, n_clusters=n_clusters_data, n_random_inits=10)
 
 # Visualize result
 fig = plt.figure()

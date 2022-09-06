@@ -49,7 +49,8 @@ mix_par_init = (mix_mu_init, mix_sigma_init)
 
 # EM algorithm for a single initialization
 em = EM_GMM(mix_weights_init=mix_weights_init, mix_par_init=mix_par_init)
-em.train(X_train, n_clusters=2, tol=1e-15)
+em.EM_set_initialization(X_train, n_clusters=n_clusters_data, init_method='random')
+em.train()
 
 # Visualize result
 fig = plt.figure()

@@ -2,29 +2,46 @@ import numpy as np
 from scipy.special import logsumexp
 from types import FunctionType
 
+class EM_multi_init:
+
+    def multi_random_init(self, X_train, n_clusters, n_random_inits=1):
+        random_seed = 123
+        bic_min = 99999
+        self.opt_mix_par = None
+        for i_init in range(n_random_inits):
+            self.EM_set_initialization(X_train, n_clusters=n_clusters, init_method='random')
+            self.train()
+            if self.bic < bic_min:
+                self.bic_min = self.bic
+                opt_mix_par = self.mix_par
+        self.mix_par = opt_mix_par
+        self.EM_set_initialization(X_train, n_clusters=n_clusters, init_method=None)
+
 class EM_wrapper:
 
     def EM_init_Kmeans(self):
-        self.mix_par, self.weights = self.init_fn(data=self.X_train, n_clusters=self.n_clusters)
+        self.mix_par, self.weights = self.init_fn(X_train=self.X_train, n_clusters=self.n_clusters)
 
     def EM_init_random(self, random_seed=0):
         np.random.seed(random_seed)
         Z = np.random.choice([i for i in range(self.n_clusters)], size=self.n_train, replace=True)
-        self.mix_par, self.weights = self.init_fn(data=self.X_train, Z=Z, n_clusters=self.n_clusters)
+        self.mix_par, self.weights = self.init_fn(X_train=self.X_train, Z=Z, n_clusters=self.n_clusters)
 
-    def EM_init(self, init_method='Kmeans', random_seed=0):
+    def EM_initialize(self, init_method='Kmeans', random_seed=0):
         if init_method == 'Kmeans':
             self.EM_init_Kmeans()
         elif init_method == 'random':
-            self.EM_init_random()
+            self.EM_init_random(random_seed=random_seed)
+        elif init_method is None:
+            pass # Preserve given initialization for the case of multi-random initialization
         else:
             raise Exception('No initlization method given')
 
-class EM(EM_wrapper):
+
+class EM(EM_wrapper, EM_multi_init):
 
     def __init__(self, init_fn=None, mix_par_init=None, mix_weights_init=None, model_type='normal'):
         self.model_type = str.lower(model_type)
-        # self.log_like_fn = log_like_fn
         self.bic = None
         self.aic = None
         if isinstance(init_fn, FunctionType):
@@ -103,17 +120,18 @@ class EM(EM_wrapper):
         self.mix_par = mix_par
         self.weights = post.sum(axis=0) / self.n_train
 
-    def train(self, data, n_clusters, init_method='deterministic', tol=1e-6, n_loops=int(1e+5), random_seed=0):
+    def EM_set_initialization(self, X_train, n_clusters, init_method='Kmeans', random_seed=0):
 
-        self.convergence = False
-
-        self.X_train = data
+        self.X_train = X_train
         self.n_train = self.X_train.shape[0]
-
         self.n_clusters = n_clusters
 
         if isinstance(self.init_fn, FunctionType):
-            self.EM_init(init_method=init_method, random_seed=random_seed)
+            self.EM_initialize(init_method=init_method, random_seed=random_seed)
+
+    def train(self, tol=1e-6, n_loops=int(1e+5)):
+
+        self.convergence = False
 
         old_log_like = None
         new_log_like = None
