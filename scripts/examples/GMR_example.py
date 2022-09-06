@@ -43,7 +43,8 @@ n_data = n_train + n_test
 
 np.random.seed(3562)
 alpha_true = np.random.uniform(-3, 3, n_clusters_data)
-np.random.seed(7965)
+np.random.seed(986654)
+# np.random.seed(124587)
 beta_true = np.random.uniform(-3, 3, n_clusters_data)
 
 np.random.seed(123)
