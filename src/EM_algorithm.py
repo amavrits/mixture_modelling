@@ -5,17 +5,18 @@ from types import FunctionType
 class EM_multi_init:
 
     def multi_random_init(self, X_train, n_clusters, n_random_inits=1):
-        random_seed = 123
         bic_min = 99999
-        self.opt_mix_par = None
+        opt_mix_par = None
         for i_init in range(n_random_inits):
             self.EM_set_initialization(X_train, n_clusters=n_clusters, init_method='random')
             self.train()
             if self.bic < bic_min:
-                self.bic_min = self.bic
+                bic_min = self.bic
                 opt_mix_par = self.mix_par
         self.mix_par = opt_mix_par
         self.EM_set_initialization(X_train, n_clusters=n_clusters, init_method=None)
+        self.train()
+
 
 class EM_wrapper:
 
@@ -27,7 +28,7 @@ class EM_wrapper:
         Z = np.random.choice([i for i in range(self.n_clusters)], size=self.n_train, replace=True)
         self.mix_par, self.weights = self.init_fn(X_train=self.X_train, Z=Z, n_clusters=self.n_clusters)
 
-    def EM_initialize(self, init_method='Kmeans', random_seed=0):
+    def EM_initialize(self, init_method=None, random_seed=0):
         if init_method == 'Kmeans':
             self.EM_init_Kmeans()
         elif init_method == 'random':
@@ -62,7 +63,9 @@ class EM(EM_wrapper, EM_multi_init):
         return post, log_like_points.sum()
 
     def m_step(self, post, var_lower_bnd=1e-5):
+
         mix_par = ()
+
         if self.model_type == 'normal':
             mu = np.dot(post.T, self.X_train) / post.sum(axis=0)[:, None]
             var = np.zeros_like(mu)
@@ -73,12 +76,19 @@ class EM(EM_wrapper, EM_multi_init):
             sigma = np.sqrt(var)
             sigma = np.maximum(1e-6, sigma)
             mix_par = (mu, sigma)
+
         elif self.model_type == 'multivariate_normal':
-            pass
+            mu = np.dot(post.T, self.X_train) / post.sum(axis=0)[:, None]
+            cov = np.zeros((self.n_clusters, mu.shape[1], mu.shape[1]))
+            for i_cluster in range(self.n_clusters):
+                resid = self.X_train - mu[i_cluster]
+                cov[i_cluster] = np.dot(resid.T, post[:, i_cluster][:, None] * resid) / post[:, i_cluster].sum(axis=0)
+            mix_par = (mu, cov)
+
         elif self.model_type == 'poisson':
             pass
-        elif self.model_type == 'linear':
 
+        elif self.model_type == 'linear':
             x = self.X_train[:, :-1]
             y = self.X_train[:, -1]
             Z = np.argmax(post, axis=1)
@@ -117,10 +127,13 @@ class EM(EM_wrapper, EM_multi_init):
 
             mix_par = (beta, sigma)
 
+        else:
+            mix_par = self.custom_m_step(post)
+
         self.mix_par = mix_par
         self.weights = post.sum(axis=0) / self.n_train
 
-    def EM_set_initialization(self, X_train, n_clusters, init_method='Kmeans', random_seed=0):
+    def EM_set_initialization(self, X_train, n_clusters, init_method=None, random_seed=0):
 
         self.X_train = X_train
         self.n_train = self.X_train.shape[0]
@@ -150,11 +163,13 @@ class EM(EM_wrapper, EM_multi_init):
         self.calc_aic()
 
     def calc_bic(self):
+        #TODO: Generalize couting the number of parameters
         d = self.n_clusters * len(self.mix_par) + self.weights.shape[0] - 1  # Number of model parameters
         bic = np.log(self.n_train) * d - 2 * self.log_like
         self.bic = bic  # The model with the lowest BIC wins
 
     def calc_aic(self):
+        #TODO: Generalize couting the number of parameters
         d = self.n_clusters * len(self.mix_par) + self.weights.shape[0] - 1  # Number of model parameters
         aic = 2 * d - 2 * self.log_like
         self.aic = aic  # The model with the lowest AIC wins
